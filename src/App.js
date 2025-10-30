@@ -12,13 +12,27 @@ function App() {
       const followersData = JSON.parse(await zip.file('connections/followers_and_following/followers_1.json').async('text'));
       const followingData = JSON.parse(await zip.file('connections/followers_and_following/following.json').async('text'));
       
-      const followers = Array.isArray(followersData) 
+      // Handle followers_1.json format (array with string_list_data[0].value)
+      const followers = Array.isArray(followersData)
         ? followersData.map(entry => entry.string_list_data[0].value)
         : Object.values(followersData).flatMap(arr => arr.map(entry => entry.string_list_data[0].value));
-      
-      const following = Array.isArray(followingData)
-        ? followingData.map(entry => entry.string_list_data[0].value)
-        : Object.values(followingData).flatMap(arr => arr.map(entry => entry.string_list_data[0].value));
+
+      // Handle following.json format (object with relationships_following, username in title field)
+      let following = [];
+      if (followingData.relationships_following) {
+        // New format: object with relationships_following array, username in title
+        following = followingData.relationships_following.map(entry => entry.title);
+      } else if (Array.isArray(followingData)) {
+        // Old format: direct array
+        following = followingData.map(entry =>
+          entry.string_list_data[0].value || entry.title
+        );
+      } else {
+        // Fallback for other object formats
+        following = Object.values(followingData).flatMap(arr =>
+          arr.map(entry => entry.string_list_data[0].value || entry.title)
+        );
+      }
       
       const notFollowingBack = following.filter(user => !followers.includes(user));
       
